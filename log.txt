@@ -1,0 +1,4 @@
+Starting application
+
+Exiting normally
+
