@@ -42,22 +42,18 @@ void init_matrices(void);
 HRESULT init_lists(void);
 void draw_pyramid(void);
 void draw_cube(void);
+void draw_cube2(void);
 void move_cam(void);
 bool InitInput(HWND hWnd);
 bool UpdateInput(void);
 bool ReleaseInput(void);
 
-// The name of our application.  Used for window and MessageBox titles and error reporting
 const char *g_app_name = "3D Objects";
 
-// Our screen/window sizes and bit depth.  A better app would allow the user to choose the
-// sizes.  I'll do that in a later tutorial, for now this is good enough.
 const int g_width = 800;
 const int g_height = 480;
 const int g_depth = 16; //16-bit colour
 
-// Our global flag to track whether we should quit or not.  When it becomes true, we clean
-// up and exit.
 bool g_app_done = false;
 
 // Our main Direct3D interface, it doesn't do much on its own, but all the more commonly
@@ -106,10 +102,6 @@ D3DXVECTOR3 up_vector;
 D3DXMATRIX world_matrix;
 float aspect;
 
-//******************************************************************************************
-// Function:WinMain
-// Whazzit:The entry point of our application
-//******************************************************************************************
 int APIENTRY WinMain(HINSTANCE ,HINSTANCE ,LPSTR ,int ){
 bool fullscreen;
 HWND window = NULL;
@@ -262,7 +254,7 @@ bool InitInput(HWND hWnd)
 }
 bool UpdateInput(void)
 {
-	//if (FAILED(m_keyboard->GetDeviceState(sizeof(UCHAR[256]), (LPVOID)keystate)))
+	if (FAILED(m_keyboard->GetDeviceState(sizeof(UCHAR[256]), (LPVOID)keystate)))
 		//return false;
 	if (FAILED(m_mouse->GetDeviceState(sizeof(DIMOUSESTATE), (LPVOID)&mouse_state)))
 		return false;
@@ -357,25 +349,16 @@ void set_device_states(void){
    
 
 
-   float Start = 7.0f,    // Linear fog distances
-	End = 8.5f;
+   float Start = 8.0f,    // Linear fog distances
+	End = 9.0f;
 
-   g_d3d_device->SetRenderState(D3DRS_FOGENABLE, FALSE);
-   g_d3d_device->SetRenderState(D3DRS_FOGCOLOR, 0x00FFFFFF);
+   g_d3d_device->SetRenderState(D3DRS_FOGENABLE, TRUE);
+   g_d3d_device->SetRenderState(D3DRS_FOGCOLOR, 0x008F8F8F);
    g_d3d_device->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
    g_d3d_device->SetRenderState(D3DRS_FOGSTART, *(DWORD *)(&Start));
    g_d3d_device->SetRenderState(D3DRS_FOGEND, *(DWORD *)(&End));
-   // create material
-   D3DMATERIAL9 mtrl;
-   ZeroMemory(&mtrl, sizeof(mtrl));
-   mtrl.Ambient.r = 0.75f;
-   mtrl.Ambient.g = 0.0f;
-   mtrl.Ambient.b = 0.0f;
-   mtrl.Ambient.a = 0.0f;
-   g_d3d_device->SetMaterial(&mtrl);
-   g_d3d_device->SetRenderState(D3DRS_AMBIENT, 0x007fbfbf);
 
-
+   
    g_d3d_device->SetRenderState(D3DRS_CULLMODE,D3DCULL_CCW);      //Default culling
    //g_d3d_device->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);   //No culling
    //g_d3d_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
@@ -457,9 +440,16 @@ HRESULT hr;
                                  0,                   //OffsetInBytes
                                  sizeof(tri_vertex)); //Stride
 
+
+
+
+   draw_cube2();
+
    draw_pyramid();
    
    draw_cube();
+
+
 
    //Notify the device that we're finished rendering for this frame
    g_d3d_device->EndScene();
@@ -534,6 +524,35 @@ int start_vertex;
       rot_cube-=D3DX_PI*2;
    }
 
+}
+void draw_cube2(void) {
+	D3DXMATRIX rot_matrix;
+	D3DXMATRIX trans_matrix;
+	D3DXMATRIX scale_matrix;
+	D3DXMATRIX world_matrix;
+	
+	static float rot_cube = 0.0f;
+	int start_vertex;
+
+
+	//Offset past the pyramid, offset is given as the number of vertices to be skipped
+	start_vertex = g_pyramid_count * 3;
+
+
+	
+	D3DXMatrixRotationYawPitchRoll(&rot_matrix, 1.0f, 1.0f, 1.0f);  //Rotate the cube
+	D3DXMatrixTranslation(&trans_matrix, 0.0f, 0.0f, -3.0f); //Shift it
+	D3DXMatrixScaling(&scale_matrix, 1.0f, 1.0f, 1.0f);
+	
+	D3DXMatrixMultiply(&world_matrix, &rot_matrix, &trans_matrix);   //Rot & Trans
+	D3DXMatrixMultiply(&world_matrix, &world_matrix, &scale_matrix);
+
+	g_d3d_device->SetTransform(D3DTS_WORLD, &world_matrix);
+
+	//Render from our Vertex Buffer
+	g_d3d_device->DrawPrimitive(D3DPT_TRIANGLELIST, //PrimitiveType
+		start_vertex,       //StartVertex
+		g_cube_count);      //PrimitiveCount
 }
 //******************************************************************************************
 // Function:init_lists
