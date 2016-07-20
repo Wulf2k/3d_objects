@@ -11,6 +11,11 @@
 #define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
 #include <D3DX9.h>
 #include <dinput.h>
+#include <fstream>
+#include <iostream>
+#include <tchar.h>
+#include <vector>
+#include <wchar.h>
 #include "../common/dhWindow.h"
 #include "../common/dhD3D.h"
 #include "../common/dhUtility.h"
@@ -30,6 +35,67 @@
 #else
   #pragma comment(lib,"d3dx9.lib")
 #endif
+
+using namespace std;
+
+#define C_WHITE D3DCOLOR_RGBA(255,255,255,255)
+#include <sstream>
+
+#define SSTR( x ) static_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
+IDirect3D9 *g_D3D = NULL;
+IDirect3DDevice9 *g_d3d_device = NULL;
+D3DPRESENT_PARAMETERS g_pp;
+
+
+typedef unsigned char BYTE;
+LPD3DXFONT gFont;
+D3DVIEWPORT9 d3dViewport;
+bool CreateDefaultFont();
+
+vector<BYTE> readFile(const char* filename)
+{
+	// open the file:
+	streampos fileSize;
+	ifstream file(filename, ios::binary);
+
+	// get its size:
+	file.seekg(0, ios::end);
+	fileSize = file.tellg();
+	file.seekg(0, ios::beg);
+	
+	// read the data:
+	vector<BYTE> fileData(fileSize);
+	file.read((char*)&fileData[0], fileSize);
+	return fileData;
+}
+vector<BYTE> fileData = readFile("c:\\temp\\verttest");
+void DrawScreenText(LPD3DXFONT font, LPCSTR text, int x, int y, D3DCOLOR color)
+{
+	if (font == NULL)
+		return;
+
+	RECT pos; pos.left = x; pos.top = y;
+	font->DrawText(0, text, -1, &pos, DT_NOCLIP, color);
+}
+bool CreateDefaultFont()
+{
+	if (gFont == NULL)
+	{
+		//printf("\tgFont == NULL\n");
+		g_d3d_device->GetViewport(&d3dViewport);
+
+		if (HRESULT fontCreateResult = D3DXCreateFont(g_d3d_device, 12, 0, FW_NORMAL, 1, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Consolas", &gFont) != S_OK)
+		{
+			printf("Problem creating Font: Result = %lu  -  %08X\n", fontCreateResult, fontCreateResult);
+			return false;
+		}
+
+	}
+
+
+	return (gFont != NULL);
+}
 
 
 // Forward declarations for all of our functions, see their definitions for more detail
@@ -56,19 +122,7 @@ const int g_depth = 16; //16-bit colour
 
 bool g_app_done = false;
 
-// Our main Direct3D interface, it doesn't do much on its own, but all the more commonly
-// used interfaces are created by it.  It's the first D3D object you create, and the last
-// one you release.
-IDirect3D9 *g_D3D = NULL;
 
-// The D3DDevice is your main rendering interface.  It represents the display and all of its
-// capabilities.  When you create, modify, or render any type of resource, you will likely
-// do it through this interface.
-IDirect3DDevice9 *g_d3d_device = NULL;
-
-//Our presentation parameters.  They get set in our call to dhInitDevice, and we need them
-//in case we need to reset our application.
-D3DPRESENT_PARAMETERS g_pp;
 
 struct tri_vertex
 {
@@ -293,6 +347,12 @@ void InitVolatileResources(void)
 
    init_matrices();
 
+   gFont = NULL;
+
+   CreateDefaultFont();
+
+
+
 }
 //******************************************************************************************
 // Function:FreeVolatileResources
@@ -407,6 +467,18 @@ void init_matrices(void){
 // Function:render
 // Whazzit:Clears the screen, renders our scene and then presents the results.
 //******************************************************************************************
+float bytesToFloatB(UINT loc)
+{
+	float output;
+
+	*((BYTE*)(&output) + 3) = fileData.at(loc);
+	*((BYTE*)(&output) + 2) = fileData.at(loc+1);
+	*((BYTE*)(&output) + 1) = fileData.at(loc+2);
+	*((BYTE*)(&output) + 0) = fileData.at(loc+3);
+
+	return output;
+}
+
 HRESULT render(void){
 HRESULT hr;
 
@@ -443,11 +515,18 @@ HRESULT hr;
 
 
 
+   
    draw_cube2();
 
    draw_pyramid();
    
    draw_cube();
+
+   TCHAR buf[100];
+   sprintf(buf, _T("%f"), bytesToFloatB(0));
+
+
+   DrawScreenText(gFont, buf, 5, 5, C_WHITE);
 
 
 
@@ -587,6 +666,7 @@ tri_vertex data[]={
 
 };
 void *vb_vertices;
+
 HRESULT hr;
 
    hr=g_d3d_device->CreateVertexBuffer(sizeof(data),      //Length
